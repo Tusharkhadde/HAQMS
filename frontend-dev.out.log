@@ -1,0 +1,19 @@
+
+> frontend@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.100:3000
+✓ Ready in 1015ms
+
+○ Compiling / ...
+ GET / 200 in 3.8s (next.js: 3.4s, application-code: 338ms)
+ GET / 200 in 1721ms (next.js: 696ms, application-code: 1025ms)
+ GET / 200 in 17.7s (next.js: 16.9s, application-code: 780ms)
+✓ Finished writing to filesystem cache in 23.0s
+○ Compiling /login ...
+✓ Finished writing to filesystem cache in 17.9s
+✓ Finished writing to filesystem cache in 45s
+ GET / 200 in 774ms (next.js: 33ms, application-code: 741ms)
+[?25h

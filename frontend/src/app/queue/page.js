@@ -45,32 +45,26 @@ export default function QueueMonitor() {
     // dozens of parallel intervals will poll the database, causing memory bloat,
     // state update crashes on unmounted components, and heavy server load.
     const intervalId = setInterval(() => {
-      console.log(`[POLL] Active Queue Poll #${refreshCount + 1} firing...`);
       fetchQueueData();
       setRefreshCount((prev) => prev + 1);
     }, 3000);
 
-    // Junior Developer Note: "Interval created, will run forever to keep dashboard fully synced!"
-    // Missing: return () => clearInterval(intervalId);
-  }, []); // Note that refreshCount dependency is missing too, causing stale closure on log!
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Group tokens by doctor
   const groupedTokens = tokens.reduce((groups, token) => {
+    if (!token?.doctor) return groups;
     const docId = token.doctorId;
     if (!groups[docId]) {
       groups[docId] = {
         doctorName: token.doctor.name,
         specialization: token.doctor.specialization,
-        calling: null,
-        waiting: [],
+        tokens: [],
       };
     }
-    
-    if (token.status === 'CALLING') {
-      groups[docId].calling = token;
-    } else if (token.status === 'WAITING') {
-      groups[docId].waiting.push(token);
-    }
+
+    groups[docId].tokens.push(token);
     return groups;
   }, {});
 
@@ -136,7 +130,23 @@ export default function QueueMonitor() {
         ) : (
           /* Grid of Doctor Calling Boards */
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {Object.entries(groupedTokens).map(([docId, docInfo]) => (
+            {Object.entries(groupedTokens).map(([docId, docInfo]) => {
+              const ordered = docInfo.tokens
+                .slice()
+                .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+              const seqById = ordered.reduce((acc, t, idx) => {
+                acc[t.id] = idx + 1;
+                return acc;
+              }, {});
+
+              const calling = ordered.find((t) => t.status === 'CALLING') || null;
+              const waiting = ordered.filter((t) => t.status === 'WAITING');
+
+              const primaryToken = calling || waiting[0] || null;
+              const primarySeq = primaryToken ? seqById[primaryToken.id] : null;
+
+              return (
               <div
                 key={docId}
                 className="glass rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col h-full hover:shadow-teal-500/5 hover:border-teal-500/30 transition-all duration-300"
@@ -156,15 +166,15 @@ export default function QueueMonitor() {
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2.5">
                       Now Calling
                     </h4>
-                    {docInfo.calling ? (
+                    {primaryToken ? (
                       <div className="bg-teal-500/10 dark:bg-teal-500/5 border border-teal-500/30 p-6 rounded-2xl text-center shadow-inner relative overflow-hidden group">
                         {/* Glowing radial accent */}
                         <div className="absolute inset-0 bg-radial-gradient(circle, rgba(20,184,166,0.1) 0%, transparent 80%) opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <span className="block text-5xl font-black text-teal-600 dark:text-teal-400 tracking-wider animate-pulse">
-                          #{docInfo.calling.tokenNumber}
+                          #{primarySeq}
                         </span>
                         <span className="block text-xs font-bold text-slate-400 uppercase tracking-wide mt-2">
-                          Patient: {docInfo.calling.patient.name}
+                          {calling ? 'Patient' : 'Next Patient'}: {primaryToken.patient?.name || 'Unknown'}
                         </span>
                       </div>
                     ) : (
@@ -184,15 +194,15 @@ export default function QueueMonitor() {
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
                       Queue List
                     </h4>
-                    {docInfo.waiting.length > 0 ? (
+                    {waiting.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
-                        {docInfo.waiting.map((token) => (
+                        {waiting.map((token) => (
                           <div
                             key={token.id}
                             className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300"
                             title={`Patient: ${token.patient.name}`}
                           >
-                            #{token.tokenNumber}
+                            #{seqById[token.id]}
                           </div>
                         ))}
                       </div>
@@ -204,7 +214,8 @@ export default function QueueMonitor() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

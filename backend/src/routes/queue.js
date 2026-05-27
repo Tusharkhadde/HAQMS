@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 // GET /api/queue
 // List all active queue tokens
-router.get('/', authenticate, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { doctorId, status } = req.query;
 
